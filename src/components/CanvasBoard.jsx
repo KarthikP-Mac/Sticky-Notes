@@ -8,7 +8,10 @@ export default function CanvasBoard({
   onPinNote,
   allTags,
   theme,
-  onAddNoteAtPosition
+  onAddNoteAtPosition,
+  isSelectMode = false,
+  selectedNoteIds = [],
+  onToggleSelect
 }) {
   const boardRef = useRef(null);
   
@@ -128,6 +131,9 @@ export default function CanvasBoard({
             layoutMode="canvas"
             theme={theme}
             onCanvasDragStart={handleCanvasDragStart}
+            isSelectMode={isSelectMode}
+            isSelected={selectedNoteIds.includes(note.id)}
+            onToggleSelect={onToggleSelect}
           />
         ))
       )}

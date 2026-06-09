@@ -1,184 +1,752 @@
-.counter {
-  font-size: 16px;
-  padding: 5px 10px;
-  border-radius: 5px;
-  color: var(--accent);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  transition: border-color 0.3s;
-  margin-bottom: 24px;
-
-  &:hover {
-    border-color: var(--accent-border);
-  }
-  &:focus-visible {
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
-  }
+/* ==========================================
+   Clickable Stat Cards (Navigation links)
+   ========================================== */
+a.stat-card {
+  text-decoration: none !important;
+  color: inherit !important;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1.5px solid var(--border-color);
+  outline: none;
 }
 
-.hero {
-  position: relative;
-
-  .base,
-  .framework,
-  .vite {
-    inset-inline: 0;
-    margin: 0 auto;
-  }
-
-  .base {
-    width: 170px;
-    position: relative;
-    z-index: 0;
-  }
-
-  .framework,
-  .vite {
-    position: absolute;
-  }
-
-  .framework {
-    z-index: 1;
-    top: 34px;
-    height: 28px;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(44deg) rotateY(39deg)
-      scale(1.4);
-  }
-
-  .vite {
-    z-index: 0;
-    top: 107px;
-    height: 26px;
-    width: auto;
-    transform: perspective(2000px) rotateZ(300deg) rotateX(40deg) rotateY(39deg)
-      scale(0.8);
-  }
+a.stat-card:hover {
+  background-color: var(--bg-primary);
+  border-color: var(--accent-color);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px -4px rgba(59, 130, 246, 0.15);
 }
 
-#center {
+a.stat-card:active {
+  transform: translateY(-1px);
+}
+
+a.stat-card.active {
+  border-color: var(--accent-color);
+  background-color: rgba(59, 130, 246, 0.06);
+  box-shadow: 0 4px 12px -2px rgba(59, 130, 246, 0.1) inset;
+}
+
+/* ==========================================
+   Modals & Glassmorphic Dialog Overlays
+   ========================================== */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.25s ease-out;
+}
+
+.modal-content {
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  width: 90%;
+  max-width: 480px;
+  padding: 24px;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
-  gap: 25px;
-  place-content: center;
-  place-items: center;
-  flex-grow: 1;
-
-  @media (max-width: 1024px) {
-    padding: 32px 20px 24px;
-    gap: 18px;
-  }
+  gap: 16px;
+  color: var(--text-primary);
 }
 
-#next-steps {
+.modal-header {
   display: flex;
-  border-top: 1px solid var(--border);
-  text-align: left;
-
-  & > div {
-    flex: 1 1 0;
-    padding: 32px;
-    @media (max-width: 1024px) {
-      padding: 24px 20px;
-    }
-  }
-
-  .icon {
-    margin-bottom: 16px;
-    width: 22px;
-    height: 22px;
-  }
-
-  @media (max-width: 1024px) {
-    flex-direction: column;
-    text-align: center;
-  }
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 12px;
 }
 
-#docs {
-  border-right: 1px solid var(--border);
-
-  @media (max-width: 1024px) {
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
+.modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-#next-steps ul {
-  list-style: none;
-  padding: 0;
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.modal-description {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Category Management List inside Modal */
+.categories-list-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-right: 4px;
+  margin-top: 8px;
+}
+
+.category-item-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  transition: border-color 0.2s;
+}
+
+.category-item-row:hover {
+  border-color: var(--text-secondary);
+}
+
+.category-name-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.category-hash {
+  color: var(--accent-color);
+  font-weight: 700;
+}
+
+.default-badge {
+  font-size: 0.65rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background-color: var(--border-color);
+  padding: 2px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+}
+
+.category-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Privacy Toggle Button styling */
+.privacy-toggle-btn {
+  border: 1px solid;
+  background: none;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.25s ease;
+}
+
+.privacy-toggle-btn.public {
+  border-color: #22c55e;
+  color: #22c55e;
+}
+
+.privacy-toggle-btn.public:hover {
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.privacy-toggle-btn.private {
+  border-color: #eab308;
+  color: #eab308;
+  background-color: rgba(234, 179, 8, 0.05);
+}
+
+.privacy-toggle-btn.private:hover {
+  background-color: rgba(234, 179, 8, 0.15);
+}
+
+.category-delete-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s;
+}
+
+.category-delete-btn:hover {
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+/* Forms inside modals */
+.modal-tag-form {
   display: flex;
   gap: 8px;
-  margin: 32px 0 0;
-
-  .logo {
-    height: 18px;
-  }
-
-  a {
-    color: var(--text-h);
-    font-size: 16px;
-    border-radius: 6px;
-    background: var(--social-bg);
-    display: flex;
-    padding: 6px 12px;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-    transition: box-shadow 0.3s;
-
-    &:hover {
-      box-shadow: var(--shadow);
-    }
-    .button-icon {
-      height: 18px;
-      width: 18px;
-    }
-  }
-
-  @media (max-width: 1024px) {
-    margin-top: 20px;
-    flex-wrap: wrap;
-    justify-content: center;
-
-    li {
-      flex: 1 1 calc(50% - 8px);
-    }
-
-    a {
-      width: 100%;
-      justify-content: center;
-      box-sizing: border-box;
-    }
-  }
+  width: 100%;
 }
 
-#spacer {
-  height: 88px;
-  border-top: 1px solid var(--border);
-  @media (max-width: 1024px) {
-    height: 48px;
-  }
+.modal-tag-input {
+  flex-grow: 1;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  outline: none;
 }
 
-.ticks {
+.modal-tag-input:focus {
+  border-color: var(--border-focus);
+}
+
+.modal-add-tag-btn {
+  padding: 0 16px;
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.2s;
+}
+
+.modal-add-tag-btn:hover {
+  background-color: var(--accent-hover);
+}
+
+.modal-error-msg {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: -6px;
+}
+
+/* ==========================================
+   Offline Backup PIN Vault Setup
+   ========================================== */
+.pin-setup-modal {
+  max-width: 380px;
+  align-items: center;
+  text-align: center;
+}
+
+.pin-modal-icon {
+  background-color: rgba(59, 130, 246, 0.1);
+  color: var(--accent-color);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.pin-setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.pin-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+}
+
+.pin-input-wrapper label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+.input-with-icon {
   position: relative;
   width: 100%;
+}
 
-  &::before,
-  &::after {
-    content: '';
-    position: absolute;
-    top: -4.5px;
-    border: 5px solid transparent;
-  }
+.input-with-icon input {
+  width: 100%;
+  height: 44px;
+  padding: 0 44px 0 16px;
+  font-size: 1.25rem;
+  letter-spacing: 4px;
+  font-weight: 700;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: center;
+  outline: none;
+}
 
-  &::before {
-    left: 0;
-    border-left-color: var(--border);
+.input-with-icon input:focus {
+  border-color: var(--border-focus);
+}
+
+.toggle-password-visibility {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.pin-error-alert {
+  font-size: 0.8rem;
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  padding: 8px;
+  border-radius: 6px;
+}
+
+.pin-submit-btn {
+  height: 44px;
+  border: none;
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  font-size: 0.95rem;
+}
+
+.pin-submit-btn:hover {
+  background-color: var(--accent-hover);
+}
+
+/* ==========================================
+   Unlock Overlay Locked Categories Screen
+   ========================================== */
+.unlock-overlay-container {
+  width: 100%;
+  height: 100%;
+  min-height: calc(100vh - 72px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  /* Blurredblueprint dotted layout matching canvas board background */
+  background-image: radial-gradient(circle, var(--canvas-grid-color) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.unlock-card {
+  max-width: 420px;
+  width: 100%;
+  padding: 32px;
+  border-radius: 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.glassmorphic {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+.lock-icon-badge {
+  background-color: rgba(234, 179, 8, 0.1);
+  color: #eab308;
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px rgba(234, 179, 8, 0.2);
+  animation: pulseLock 2s infinite ease-in-out;
+}
+
+.unlock-card h2 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: -8px;
+}
+
+.unlock-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.connection-status-badge {
+  margin-top: -8px;
+}
+
+.connection-status-badge span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.badge-online {
+  color: #22c55e;
+  background-color: rgba(34, 197, 94, 0.1);
+}
+
+.badge-offline {
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.auth-method-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.google-btn-wrapper {
+  min-height: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.simulate-auth-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background-color: rgba(59, 130, 246, 0.06);
+  border: 1.5px solid var(--accent-color);
+  color: var(--accent-color);
+  padding: 10px 20px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  max-width: 280px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.simulate-auth-btn:hover {
+  background-color: var(--accent-color);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
+  transform: translateY(-1px);
+}
+
+.divider-or {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+}
+
+.divider-or::before,
+.divider-or::after {
+  content: '';
+  flex-grow: 1;
+  height: 1px;
+  background-color: var(--border-color);
+}
+
+.divider-or span {
+  padding: 0 10px;
+}
+
+.pin-auth-sec h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pin-info-box {
+  background-color: rgba(59, 130, 246, 0.05);
+  border: 1px solid rgba(59, 130, 246, 0.15);
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.overlay-pin-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  max-width: 280px;
+  margin: 0 auto;
+}
+
+.overlay-pin-form input {
+  flex-grow: 1;
+  height: 40px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  text-align: center;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+  font-weight: 700;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.overlay-pin-form input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.pin-unlock-submit-btn {
+  padding: 0 20px;
+  background-color: var(--accent-color);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 10px rgba(59, 130, 246, 0.15);
+}
+
+.pin-unlock-submit-btn:hover {
+  background-color: var(--accent-hover);
+  box-shadow: 0 6px 14px rgba(59, 130, 246, 0.25);
+  transform: translateY(-0.5px);
+}
+
+.overlay-error-msg {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin-top: 4px;
+}
+
+/* ==========================================
+   Add Note Category Modal
+   ========================================== */
+.add-note-category-modal {
+  max-width: 440px;
+}
+
+.category-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.category-select-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+
+.category-select-btn:hover {
+  border-color: var(--accent-color);
+  background-color: rgba(59, 130, 246, 0.05);
+  transform: translateY(-1px);
+}
+
+/* ==========================================
+   Vault & Connection Status in Toolbar
+   ========================================== */
+.vault-status-container {
+  display: flex;
+  align-items: center;
+}
+
+.vault-unlock-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 20px;
+  border: 1.5px solid #eab308;
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.05) 0%, rgba(234, 179, 8, 0.12) 100%);
+  color: #eab308;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(234, 179, 8, 0.05);
+}
+
+.vault-unlock-btn:hover {
+  background: linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(234, 179, 8, 0.22) 100%);
+  box-shadow: 0 6px 16px rgba(234, 179, 8, 0.2);
+  transform: translateY(-1px);
+}
+
+.vault-status-unlocked {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 3px 3px 3px 12px;
+}
+
+.user-profile-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.user-avatar-placeholder {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background-color: var(--accent-color);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.user-name-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vault-lock-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  border-radius: 16px;
+  border: none;
+  background-color: rgba(15, 23, 42, 0.08);
+  color: var(--text-primary);
+  padding: 0 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+:root[data-theme='dark'] .vault-lock-btn {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.vault-lock-btn:hover {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.offline-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.15);
+  padding: 8px 12px;
+  border-radius: 20px;
+  height: 40px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.offline-text {
+  @media (max-width: 900px) {
+    display: none;
   }
-  &::after {
-    right: 0;
-    border-right-color: var(--border);
-  }
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes pulseLock {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(234, 179, 8, 0.1); }
+  50% { transform: scale(1.04); box-shadow: 0 0 24px rgba(234, 179, 8, 0.35); }
 }

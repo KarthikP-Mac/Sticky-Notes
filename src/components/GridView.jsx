@@ -8,7 +8,10 @@ export default function GridView({
   onPinNote,
   allTags,
   theme,
-  onReorderNotes
+  onReorderNotes,
+  isSelectMode = false,
+  selectedNoteIds = [],
+  onToggleSelect
 }) {
   const [draggedId, setDraggedId] = useState(null);
 
@@ -53,6 +56,9 @@ export default function GridView({
                 theme={theme}
                 onDragStart={(e) => handleDragStart(e, note.id)}
                 onDragEnd={handleDragEnd}
+                isSelectMode={isSelectMode}
+                isSelected={selectedNoteIds.includes(note.id)}
+                onToggleSelect={onToggleSelect}
               />
             </div>
           ))}

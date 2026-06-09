@@ -35,7 +35,10 @@ export default function NoteCard({
   theme,
   onDragStart, // used in grid view
   onDragEnd,   // used in grid view
-  onCanvasDragStart // used in canvas view
+  onCanvasDragStart, // used in canvas view
+  isSelectMode = false,
+  isSelected = false,
+  onToggleSelect
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isAddingTag, setIsAddingTag] = useState(false);
@@ -179,7 +182,7 @@ export default function NoteCard({
 
   return (
     <div
-      className={`note-card ${note.pinned ? 'pinned' : ''} ${layoutMode}-mode`}
+      className={`note-card ${note.pinned ? 'pinned' : ''} ${layoutMode}-mode ${isSelectMode ? 'select-mode' : ''} ${isSelected ? 'selected' : ''}`}
       style={{
         backgroundColor: cardBgColor,
         borderColor: cardBorderColor,
@@ -187,11 +190,24 @@ export default function NoteCard({
         boxShadow: note.pinned ? `0 10px 25px -5px ${colorSchema.glow}, 0 8px 10px -6px ${colorSchema.glow}` : '',
         ...(layoutMode === 'canvas' ? { left: `${note.x}px`, top: `${note.y}px`, position: 'absolute' } : {})
       }}
-      draggable={layoutMode === 'grid'}
+      draggable={!isSelectMode && layoutMode === 'grid'}
       onDragStart={handleGridDragStart}
       onDragEnd={onDragEnd}
       onMouseDown={handleCanvasMouseDown}
+      onClick={(e) => {
+        if (isSelectMode) {
+          e.preventDefault();
+          e.stopPropagation();
+          onToggleSelect(note.id);
+        }
+      }}
     >
+      {/* Checkbox Overlay in Selection Mode */}
+      {isSelectMode && (
+        <div className="note-card-selection-overlay">
+          <div className={`note-card-selection-checkbox ${isSelected ? 'checked' : ''}`} />
+        </div>
+      )}
       {/* Drag handle visible only in Canvas View */}
       {layoutMode === 'canvas' && (
         <div className="canvas-drag-handle" title="Drag to move note">
@@ -205,15 +221,17 @@ export default function NoteCard({
           {/* Note Emoji Selector */}
           <div className="note-header-emoji-container">
             {note.emoji ? (
-              <span className="current-note-emoji" onClick={handleRemoveEmoji} title="Click to remove emoji">
+              <span className="current-note-emoji" onClick={isSelectMode ? undefined : handleRemoveEmoji} title={isSelectMode ? "" : "Click to remove emoji"}>
                 {note.emoji}
               </span>
             ) : (
-              <EmojiDropdown 
-                onSelect={handleEmojiSelect} 
-                triggerClassName="add-note-emoji-btn" 
-                placement="bottom-start"
-              />
+              !isSelectMode && (
+                <EmojiDropdown 
+                  onSelect={handleEmojiSelect} 
+                  triggerClassName="add-note-emoji-btn" 
+                  placement="bottom-start"
+                />
+              )
             )}
           </div>
 
@@ -225,75 +243,78 @@ export default function NoteCard({
             onBlur={handleBlur}
             placeholder="Untitled Note"
             style={{ color: cardTextColor }}
+            disabled={isSelectMode}
           />
         </div>
 
-        <div className="note-header-actions">
-          {/* Pin Button */}
-          <button
-            type="button"
-            className={`note-action-btn pin-btn ${note.pinned ? 'active' : ''}`}
-            onClick={() => onPin(note.id)}
-            title={note.pinned ? "Unpin note" : "Pin note"}
-            style={{ color: cardTextColor }}
-          >
-            <Pin size={16} fill={note.pinned ? 'currentColor' : 'transparent'} />
-          </button>
-
-          {/* More options menu */}
-          <div className="card-menu-container" ref={menuRef}>
+        {!isSelectMode && (
+          <div className="note-header-actions">
+            {/* Pin Button */}
             <button
               type="button"
-              className="note-action-btn menu-btn"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              title="More options"
+              className={`note-action-btn pin-btn ${note.pinned ? 'active' : ''}`}
+              onClick={() => onPin(note.id)}
+              title={note.pinned ? "Unpin note" : "Pin note"}
               style={{ color: cardTextColor }}
             >
-              <MoreVertical size={16} />
+              <Pin size={16} fill={note.pinned ? 'currentColor' : 'transparent'} />
             </button>
 
-            {isMenuOpen && (
-              <div className="card-dropdown-menu">
-                {/* Colors list */}
-                <div className="menu-colors-section">
-                  <span className="menu-section-label">Colors</span>
-                  <div className="colors-picker-grid">
-                    {NOTE_COLORS.map(c => (
-                      <button
-                        key={c.name}
-                        type="button"
-                        className={`color-dot ${note.color === c.name ? 'active' : ''}`}
-                        style={{ backgroundColor: theme === 'dark' ? c.borderDark : c.borderLight }}
-                        onClick={() => handleColorChange(c.name)}
-                        title={c.name}
-                      />
-                    ))}
+            {/* More options menu */}
+            <div className="card-menu-container" ref={menuRef}>
+              <button
+                type="button"
+                className="note-action-btn menu-btn"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                title="More options"
+                style={{ color: cardTextColor }}
+              >
+                <MoreVertical size={16} />
+              </button>
+
+              {isMenuOpen && (
+                <div className="card-dropdown-menu">
+                  {/* Colors list */}
+                  <div className="menu-colors-section">
+                    <span className="menu-section-label">Colors</span>
+                    <div className="colors-picker-grid">
+                      {NOTE_COLORS.map(c => (
+                        <button
+                          key={c.name}
+                          type="button"
+                          className={`color-dot ${note.color === c.name ? 'active' : ''}`}
+                          style={{ backgroundColor: theme === 'dark' ? c.borderDark : c.borderLight }}
+                          onClick={() => handleColorChange(c.name)}
+                          title={c.name}
+                        />
+                      ))}
+                    </div>
                   </div>
+
+                  <div className="menu-divider" />
+
+                  {/* Individual Exports */}
+                  <button type="button" className="menu-item-btn" onClick={() => { exportToTxt(note); setIsMenuOpen(false); }}>
+                    <FileText size={14} /> Export TXT
+                  </button>
+                  <button type="button" className="menu-item-btn" onClick={handleExportSingleJson}>
+                    <Code size={14} /> Export JSON
+                  </button>
+                  <button type="button" className="menu-item-btn" onClick={() => { printNotes([note]); setIsMenuOpen(false); }}>
+                    <Printer size={14} /> Print / PDF
+                  </button>
+
+                  <div className="menu-divider" />
+
+                  {/* Delete */}
+                  <button type="button" className="menu-item-btn delete-item-btn" onClick={() => { onDelete(note.id); setIsMenuOpen(false); }}>
+                    <Trash2 size={14} /> Delete Note
+                  </button>
                 </div>
-
-                <div className="menu-divider" />
-
-                {/* Individual Exports */}
-                <button type="button" className="menu-item-btn" onClick={() => { exportToTxt(note); setIsMenuOpen(false); }}>
-                  <FileText size={14} /> Export TXT
-                </button>
-                <button type="button" className="menu-item-btn" onClick={handleExportSingleJson}>
-                  <Code size={14} /> Export JSON
-                </button>
-                <button type="button" className="menu-item-btn" onClick={() => { printNotes([note]); setIsMenuOpen(false); }}>
-                  <Printer size={14} /> Print / PDF
-                </button>
-
-                <div className="menu-divider" />
-
-                {/* Delete */}
-                <button type="button" className="menu-item-btn delete-item-btn" onClick={() => { onDelete(note.id); setIsMenuOpen(false); }}>
-                  <Trash2 size={14} /> Delete Note
-                </button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Note Body */}
@@ -306,16 +327,19 @@ export default function NoteCard({
           onBlur={handleBlur}
           placeholder="Start typing..."
           style={{ color: cardTextColor }}
+          disabled={isSelectMode}
         />
         
         {/* Insert emoji inside textarea */}
-        <div className="body-emoji-helper">
-          <EmojiDropdown 
-            onSelect={handleBodyEmojiSelect} 
-            triggerClassName="body-emoji-trigger-btn"
-            placement="top-start"
-          />
-        </div>
+        {!isSelectMode && (
+          <div className="body-emoji-helper">
+            <EmojiDropdown 
+              onSelect={handleBodyEmojiSelect} 
+              triggerClassName="body-emoji-trigger-btn"
+              placement="top-start"
+            />
+          </div>
+        )}
       </div>
 
       {/* Note Footer: Tags and Timestamps */}
@@ -325,9 +349,11 @@ export default function NoteCard({
           {note.tags && note.tags.map(tag => (
             <span key={tag} className="tag-item">
               #{tag}
-              <button type="button" className="remove-tag-btn" onClick={() => handleRemoveTag(tag)} title="Remove tag">
-                <X size={10} />
-              </button>
+              {!isSelectMode && (
+                <button type="button" className="remove-tag-btn" onClick={() => handleRemoveTag(tag)} title="Remove tag">
+                  <X size={10} />
+                </button>
+              )}
             </span>
           ))}
 
@@ -344,16 +370,18 @@ export default function NoteCard({
               />
             </form>
           ) : (
-            <button
-              type="button"
-              className="add-tag-pill-btn"
-              onClick={() => setIsAddingTag(true)}
-              title="Add Tag"
-              style={{ color: cardTextColor }}
-            >
-              <Tag size={12} />
-              <span>+ Tag</span>
-            </button>
+            !isSelectMode && (
+              <button
+                type="button"
+                className="add-tag-pill-btn"
+                onClick={() => setIsAddingTag(true)}
+                title="Add Tag"
+                style={{ color: cardTextColor }}
+              >
+                <Tag size={12} />
+                <span>+ Tag</span>
+              </button>
+            )
           )}
         </div>
 

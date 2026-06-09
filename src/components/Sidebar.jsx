@@ -6,7 +6,9 @@ import {
   BarChart3,
   Pin,
   FolderOpen,
-  X
+  X,
+  Lock,
+  Unlock
 } from 'lucide-react';
 
 export default function Sidebar({
@@ -18,7 +20,10 @@ export default function Sidebar({
   onDeleteNote,
   onCreateTag,
   onDeleteTag,
-  isSidebarOpen
+  isSidebarOpen,
+  privateCategories = [],
+  onTogglePrivacy,
+  isUnlocked
 }) {
   const [isTrashHovered, setIsTrashHovered] = useState(false);
   const [hoveredTag, setHoveredTag] = useState(null);
@@ -116,18 +121,38 @@ export default function Sidebar({
           <BarChart3 size={14} /> Stats
         </h3>
         <div className="stats-grid">
-          <div className="stat-card">
+          <a
+            href="#all"
+            className={`stat-card ${activeTag === null ? 'active' : ''} no-underline`}
+            title='Show all notes'
+            onClick={(e) => {
+              e.preventDefault();
+              onSelectTag(null);
+            }}
+          >
             <span className="stat-value">{totalNotes}</span>
             <span className="stat-label">Total Notes</span>
-          </div>
-          <div className="stat-card">
+          </a>
+          <a
+            href="#pinned"
+            className={`stat-card ${activeTag === '__pinned__' ? 'active' : ''} no-underline`}
+            title='Show pinned notes'
+            onClick={(e) => {
+              e.preventDefault();
+              onSelectTag('__pinned__');
+            }}
+          >
             <span className="stat-value">{pinnedNotesCount}</span>
             <span className="stat-label">Pinned</span>
-          </div>
-          <div className="stat-card">
+          </a>
+          <a
+            href="#categories"
+            className="stat-card no-underline"
+            title='View tag categories'
+          >
             <span className="stat-value">{tagsCount}</span>
             <span className="stat-label">Tags</span>
-          </div>
+          </a>
         </div>
       </div>
 
@@ -176,29 +201,48 @@ export default function Sidebar({
             <span className="tag-filter-count">{totalNotes}</span>
           </button>
 
-          {tags.map(tag => (
-            <div
-              key={tag}
-              className={`tag-filter-btn ${activeTag === tag ? 'active' : ''} ${hoveredTag === tag ? 'drag-over' : ''}`}
-              onClick={() => onSelectTag(tag)}
-              onDragOver={(e) => handleDragOverTag(e, tag)}
-              onDragLeave={handleDragLeaveTag}
-              onDrop={(e) => handleDropOnTag(e, tag)}
-              title="Drag note here to tag"
-            >
-              <span className="tag-hash">#</span>
-              <span className="tag-filter-label">{tag}</span>
-              <span className="tag-filter-count">{getTagNoteCount(tag)}</span>
-              <button
-                type="button"
-                className="tag-delete-btn"
-                onClick={(e) => handleDeleteTagClick(e, tag)}
-                title={`Delete #${tag}`}
+          {tags.map(tag => {
+            const isPrivate = privateCategories.includes(tag);
+            return (
+              <div
+                key={tag}
+                className={`tag-filter-btn ${activeTag === tag ? 'active' : ''} ${hoveredTag === tag ? 'drag-over' : ''} ${isPrivate ? 'private-tag' : ''}`}
+                onClick={() => onSelectTag(tag)}
+                onDragOver={(e) => handleDragOverTag(e, tag)}
+                onDragLeave={handleDragLeaveTag}
+                onDrop={(e) => handleDropOnTag(e, tag)}
+                title={isPrivate ? "Private locked category. Drag note here to tag and encrypt." : "Drag note here to tag"}
               >
-                <X size={12} />
-              </button>
-            </div>
-          ))}
+                <span className="tag-hash">#</span>
+                <span className="tag-filter-label" style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {tag}
+                  {isPrivate && <Lock size={11} className="tag-private-icon" />}
+                </span>
+                <span className="tag-filter-count">{getTagNoteCount(tag)}</span>
+                {onTogglePrivacy && (
+                  <button
+                    type="button"
+                    className={`tag-privacy-btn ${isPrivate ? 'is-private' : 'is-public'}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onTogglePrivacy(tag);
+                    }}
+                    title={isPrivate ? 'Make public (unlock)' : 'Make private (lock & encrypt)'}
+                  >
+                    {isPrivate ? <Unlock size={12} /> : <Lock size={12} />}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="tag-delete-btn"
+                  onClick={(e) => handleDeleteTagClick(e, tag)}
+                  title={`Delete #${tag}`}
+                >
+                  <X size={12} />
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 

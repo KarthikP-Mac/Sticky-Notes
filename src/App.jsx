@@ -4,16 +4,42 @@ import Toolbar from './components/Toolbar';
 import GridView from './components/GridView';
 import CanvasBoard from './components/CanvasBoard';
 
+// Security Utilities & Modal Components
+import {
+  encryptData,
+  decryptData,
+  createOfflineVault,
+  decryptOfflineVault,
+  decodeGoogleCredential
+} from './utils/cryptoUtils';
+
+import PinSetupModal from './components/PinSetupModal';
+import UnlockOverlay from './components/UnlockOverlay';
+
 const getInitialNotes = () => {
-  const saved = localStorage.getItem('sticky_notes_data');
-  if (saved) {
+  const savedPublic = localStorage.getItem('public_notes');
+  if (savedPublic) {
     try {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(savedPublic);
+      const privateCategories = JSON.parse(localStorage.getItem('private_category_list') || '[]');
+      return parsed.filter(n => !n.tags || !n.tags.some(t => privateCategories.includes(t)));
     } catch (e) {
-      console.error("Failed to parse notes from localStorage", e);
+      console.error("Failed to parse public notes from localStorage", e);
     }
   }
-  // Fallback default mockup/tutorial notes
+
+  // Legacy fallback migration
+  const savedLegacy = localStorage.getItem('sticky_notes_data');
+  if (savedLegacy) {
+    try {
+      const parsedLegacy = JSON.parse(savedLegacy);
+      const privateCategories = JSON.parse(localStorage.getItem('private_category_list') || '[]');
+      return parsedLegacy.filter(n => !n.tags || !n.tags.some(t => privateCategories.includes(t)));
+    } catch (e) {
+      console.error("Failed to parse legacy notes from localStorage", e);
+    }
+  }
+
   return [
     {
       id: '1',
@@ -79,23 +105,63 @@ const getInitialLayout = () => {
   return localStorage.getItem('sticky_notes_layout') || 'grid';
 };
 
+const getInitialPrivateCategories = () => {
+  const saved = localStorage.getItem('private_category_list');
+  if (saved) {
+    try {
+      return JSON.parse(saved);
+    } catch (e) {
+      console.error("Failed to parse private categories list", e);
+    }
+  }
+  return [];
+};
+
 function App() {
+  // Core Sticky Notes State
   const [notes, setNotes] = useState(getInitialNotes);
   const [tags, setTags] = useState(getInitialTags);
   const [theme, setTheme] = useState(getInitialTheme);
   const [layoutMode, setLayoutMode] = useState(getInitialLayout);
 
-  // Filtering & Sorting State
+  // Filtering & Sidebar State
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTag, setActiveTag] = useState(null);
   const [sortBy, setSortBy] = useState('updatedDesc');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // Sync state to localStorage
-  useEffect(() => {
-    localStorage.setItem('sticky_notes_data', JSON.stringify(notes));
-  }, [notes]);
+  // Security & Privacy State
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [googleUserId, setGoogleUserId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [privateCategories, setPrivateCategories] = useState(getInitialPrivateCategories);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
+  // Modals Open State
+  const [isPinSetupOpen, setIsPinSetupOpen] = useState(false);
+
+  // Multi-Selection State
+  const [isSelectMode, setIsSelectMode] = useState(false);
+  const [selectedNoteIds, setSelectedNoteIds] = useState([]);
+
+  // Global Vault Unlock Screen State
+  const [isGlobalUnlockOpen, setIsGlobalUnlockOpen] = useState(false);
+
+  // Detect connection status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync basic states to localStorage
   useEffect(() => {
     localStorage.setItem('sticky_notes_tags', JSON.stringify(tags));
   }, [tags]);
@@ -109,12 +175,180 @@ function App() {
     localStorage.setItem('sticky_notes_layout', layoutMode);
   }, [layoutMode]);
 
-  // Handler for adding a note (optionally at a coordinates point)
-  const handleAddNote = (x = null, y = null) => {
+  useEffect(() => {
+    localStorage.setItem('private_category_list', JSON.stringify(privateCategories));
+  }, [privateCategories]);
+
+  // Synchronized Storage Partitioning Loop
+  useEffect(() => {
+    if (isUnlocked && googleUserId) {
+      // Split public and private notes
+      const publicNotes = [];
+      const secureNotes = [];
+
+      notes.forEach(note => {
+        const isPrivate = note.tags && note.tags.some(t => privateCategories.includes(t));
+        if (isPrivate) {
+          secureNotes.push(note);
+        } else {
+          publicNotes.push(note);
+        }
+      });
+
+      localStorage.setItem('public_notes', JSON.stringify(publicNotes));
+      try {
+        const encrypted = encryptData(secureNotes, googleUserId);
+        localStorage.setItem(`secure_notes_${googleUserId}`, encrypted);
+      } catch (e) {
+        console.error("Encryption sync error", e);
+      }
+    } else {
+      // Locked: save ONLY if the notes in state do not contain any private notes (race condition protection)
+      const hasPrivateNotes = notes.some(note => note.tags && note.tags.some(t => privateCategories.includes(t)));
+      if (!hasPrivateNotes) {
+        localStorage.setItem('public_notes', JSON.stringify(notes));
+      }
+    }
+  }, [notes, privateCategories, googleUserId, isUnlocked]);
+
+  // Google Identity Services Credential Handler
+  useEffect(() => {
+    window.handleCredentialResponse = (response) => {
+      try {
+        const decoded = decodeGoogleCredential(response.credential);
+        const sub = decoded.sub;
+        const userData = {
+          name: decoded.name || decoded.email,
+          picture: decoded.picture,
+          email: decoded.email
+        };
+        handleLoginSuccess(sub, userData);
+      } catch (err) {
+        console.error("Failed to process Google sign-in response", err);
+        alert("Google Authentication failed. Please check your network or try again.");
+      }
+    };
+
+    const initGoogleGSI = () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.initialize({
+          client_id: "102874135541-1skmrtic028v5r5v8o0cpe300ld7gqdf.apps.googleusercontent.com", // client id snippet
+          callback: window.handleCredentialResponse,
+          auto_select: false
+        });
+      }
+    };
+
+    if (window.google) {
+      initGoogleGSI();
+    } else {
+      const interval = setInterval(() => {
+        if (window.google) {
+          initGoogleGSI();
+          clearInterval(interval);
+        }
+      }, 500);
+      return () => clearInterval(interval);
+    }
+  }, [isOnline]);
+
+  const handleLoginSuccess = (sub, userData) => {
+    setGoogleUserId(sub);
+    setCurrentUser(userData);
+
+    // Decrypt secure notes bucket for this Google User
+    let decryptedSecureNotes = [];
+    const encryptedData = localStorage.getItem(`secure_notes_${sub}`);
+    if (encryptedData) {
+      try {
+        decryptedSecureNotes = decryptData(encryptedData, sub) || [];
+      } catch (err) {
+        console.error("Decryption error", err);
+        alert("Failed to decrypt your secure notes vault. Key mismatch.");
+      }
+    }
+
+    // Merge secure notes into active notes array
+    setNotes(prevNotes => {
+      // Find public notes currently in state
+      const publicNotes = prevNotes.filter(n => !n.tags || !n.tags.some(t => privateCategories.includes(t)));
+      // Merge secure notes avoiding duplicates
+      const merged = [...publicNotes, ...decryptedSecureNotes.filter(sn => !publicNotes.some(pn => pn.id === sn.id))];
+      return merged;
+    });
+
+    setIsUnlocked(true);
+    setIsGlobalUnlockOpen(false);
+
+    // Prompt for PIN setup on first authentication
+    const hasPinVault = localStorage.getItem('offline_key_vault');
+    if (!hasPinVault) {
+      setIsPinSetupOpen(true);
+    }
+  };
+
+  const handleLock = () => {
+    setGoogleUserId(null);
+    setCurrentUser(null);
+    setIsUnlocked(false);
+    setIsGlobalUnlockOpen(false);
+
+    // Clear private notes from active state memory
+    setNotes(prevNotes =>
+      prevNotes.filter(n => !n.tags || !n.tags.some(t => privateCategories.includes(t)))
+    );
+
+    // Reset view tag if it was private
+    if (activeTag && privateCategories.includes(activeTag)) {
+      setActiveTag(null);
+    }
+  };
+
+  // Offline Unlock PIN handler
+  const handlePinUnlock = (pin) => {
+    const vault = localStorage.getItem('offline_key_vault');
+    if (!vault) return false;
+
+    const sub = decryptOfflineVault(vault, pin);
+    if (sub) {
+      const userData = {
+        name: "Offline User",
+        email: "offline@local.pwa",
+        picture: null
+      };
+      handleLoginSuccess(sub, userData);
+      return true;
+    }
+    return false;
+  };
+
+  // Developer Bypass Simulation for Local Evaluation
+  const handleSimulateGoogleLogin = () => {
+    const mockSub = "109876543210987654321";
+    const mockUserData = {
+      name: "Demo Developer",
+      picture: null,
+      email: "developer@demo.local"
+    };
+    handleLoginSuccess(mockSub, mockUserData);
+  };
+
+  const handlePinSetupSubmit = (pin) => {
+    if (googleUserId) {
+      const vaultData = createOfflineVault(googleUserId, pin);
+      localStorage.setItem('offline_key_vault', vaultData);
+      setIsPinSetupOpen(false);
+      alert("Offline backup PIN configured successfully!");
+    }
+  };
+
+  // Handler for creating a note (optionally at a coordinates point)
+  const handleAddNote = (x = null, y = null, category = null) => {
+    const noteCategory = category || activeTag;
+
     // Clear search query so the new note is visible immediately
     setSearchQuery('');
-    
-    // Generate simple randomized coordinates if not provided, to avoid overlay
+
     const finalX = x !== null ? x : 100 + Math.floor(Math.random() * 80);
     const finalY = y !== null ? y : 120 + Math.floor(Math.random() * 80);
 
@@ -124,7 +358,7 @@ function App() {
       content: '',
       emoji: null,
       color: 'yellow',
-      tags: activeTag ? [activeTag] : [],
+      tags: noteCategory && noteCategory !== '__pinned__' ? [noteCategory] : [],
       pinned: false,
       createdAt: Date.now(),
       updatedAt: null,
@@ -133,6 +367,68 @@ function App() {
     };
 
     setNotes(prevNotes => [newNote, ...prevNotes]);
+  };
+
+  // Clear selection if category or search query changes
+  useEffect(() => {
+    setSelectedNoteIds([]);
+  }, [activeTag, searchQuery]);
+
+  const handleToggleSelectMode = () => {
+    setIsSelectMode(prev => {
+      const next = !prev;
+      if (!next) {
+        setSelectedNoteIds([]);
+      }
+      return next;
+    });
+  };
+
+  const handleToggleSelectNote = (noteId) => {
+    setSelectedNoteIds(prev => {
+      if (prev.includes(noteId)) {
+        return prev.filter(id => id !== noteId);
+      } else {
+        return [...prev, noteId];
+      }
+    });
+  };
+
+  const handleSelectAll = () => {
+    const visibleNoteIds = sortedNotes.map(n => n.id);
+    setSelectedNoteIds(visibleNoteIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedNoteIds([]);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedNoteIds.length === 0) return;
+    if (confirm(`Are you sure you want to delete the ${selectedNoteIds.length} selected notes?`)) {
+      setNotes(prevNotes => prevNotes.filter(n => !selectedNoteIds.includes(n.id)));
+      setSelectedNoteIds([]);
+      setIsSelectMode(false);
+    }
+  };
+
+  const handleDeleteAll = () => {
+    const visibleNotes = sortedNotes;
+    if (visibleNotes.length === 0) {
+      alert("No notes to delete.");
+      return;
+    }
+    const count = visibleNotes.length;
+    const message = activeTag
+      ? `Are you sure you want to delete all ${count} notes in the current category ("#${activeTag}")?`
+      : `Are you sure you want to delete all ${count} notes?`;
+
+    if (confirm(message)) {
+      const visibleIds = visibleNotes.map(n => n.id);
+      setNotes(prevNotes => prevNotes.filter(n => !visibleIds.includes(n.id)));
+      setSelectedNoteIds([]);
+      setIsSelectMode(false);
+    }
   };
 
   const handleUpdateNote = (updatedNote) => {
@@ -173,9 +469,9 @@ function App() {
   };
 
   const handleDeleteTag = (tagToDelete) => {
-    // Remove from the global tags list
     setTags(prevTags => prevTags.filter(t => t !== tagToDelete));
-    // Strip this tag from every note that has it
+    setPrivateCategories(prev => prev.filter(c => c !== tagToDelete));
+
     setNotes(prevNotes =>
       prevNotes.map(n => {
         if (n.tags && n.tags.includes(tagToDelete)) {
@@ -184,7 +480,7 @@ function App() {
         return n;
       })
     );
-    // If we were filtering by this tag, reset to All Notes
+
     if (activeTag === tagToDelete) {
       setActiveTag(null);
     }
@@ -203,7 +499,7 @@ function App() {
     });
   };
 
-  // Extract all active tags dynamically in case some notes have custom tags not in categories sidebar
+  // Sync tags dynamically from inline note tagging
   useEffect(() => {
     const allNotesTags = notes.reduce((acc, note) => {
       if (note.tags) {
@@ -214,7 +510,6 @@ function App() {
       return acc;
     }, []);
 
-    // Auto add newly created inline tags to the sidebar tags state list
     setTags(prevTags => {
       const merged = Array.from(new Set([...prevTags, ...allNotesTags]));
       if (merged.length !== prevTags.length) {
@@ -224,19 +519,60 @@ function App() {
     });
   }, [notes]);
 
-  // Filtering Notes
+  // Toggle Category Privacy (Locking/Unlocking)
+  const handleToggleCategoryPrivacy = (categoryName) => {
+    if (!isUnlocked) {
+      alert("Please unlock your secure vault first to manage category privacy settings.");
+      return;
+    }
+
+    setPrivateCategories(prev => {
+      const isPrivate = prev.includes(categoryName);
+      if (isPrivate) {
+        return prev.filter(c => c !== categoryName);
+      } else {
+        return [...prev, categoryName];
+      }
+    });
+  };
+
+  // Check if viewing a private category while locked, OR if user explicitly clicked Unlock Vault
+  const isViewLocked = (activeTag && privateCategories.includes(activeTag) && !isUnlocked) || (isGlobalUnlockOpen && !isUnlocked);
+
+  const handleCancelUnlock = () => {
+    setIsGlobalUnlockOpen(false);
+    if (activeTag && privateCategories.includes(activeTag)) {
+      setActiveTag(null);
+    }
+  };
+
+  // Filter Notes: Strip out private notes if locked, otherwise filter by search and active category
   const filteredNotes = notes.filter(note => {
+    // If locked, hide private notes from all views
+    if (!isUnlocked) {
+      const isPrivate = note.tags && note.tags.some(t => privateCategories.includes(t));
+      if (isPrivate) return false;
+    }
+
     const matchesSearch =
+      !searchQuery ||
       (note.title && note.title.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (note.content && note.content.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (note.tags && note.tags.some(t => t.toLowerCase().includes(searchQuery.toLowerCase())));
 
-    const matchesTag = activeTag === null || (note.tags && note.tags.includes(activeTag));
+    let matchesTag = false;
+    if (activeTag === null) {
+      matchesTag = true;
+    } else if (activeTag === '__pinned__') {
+      matchesTag = note.pinned;
+    } else {
+      matchesTag = note.tags && note.tags.includes(activeTag);
+    }
 
     return matchesSearch && matchesTag;
   });
 
-  // Sorting Notes
+  // Sorting
   const sortedNotes = [...filteredNotes].sort((a, b) => {
     if (sortBy === 'updatedDesc') {
       const timeA = a.updatedAt || a.createdAt;
@@ -264,6 +600,8 @@ function App() {
     setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
+  const hasPinVault = localStorage.getItem('offline_key_vault') !== null;
+
   return (
     <div id="root" className={theme}>
       {/* Sidebar Overlay for Mobile/Tablet */}
@@ -276,14 +614,17 @@ function App() {
         notes={notes}
         tags={tags}
         activeTag={activeTag}
+        privateCategories={privateCategories}
         onSelectTag={(tag) => {
           setActiveTag(tag);
-          setIsSidebarOpen(false); // Close sidebar on mobile once a category is selected
+          setIsSidebarOpen(false);
         }}
         onAddTagToNote={handleAddTagToNote}
         onDeleteNote={handleDeleteNote}
         onCreateTag={handleCreateTag}
         onDeleteTag={handleDeleteTag}
+        onTogglePrivacy={handleToggleCategoryPrivacy}
+        isUnlocked={isUnlocked}
         isSidebarOpen={isSidebarOpen}
       />
 
@@ -301,10 +642,53 @@ function App() {
           onAddNote={() => handleAddNote()}
           filteredNotes={sortedNotes}
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isUnlocked={isUnlocked}
+          onLock={handleLock}
+          onUnlock={() => {
+            setIsGlobalUnlockOpen(true);
+          }}
+          isOnline={isOnline}
+          currentUser={currentUser}
+          isSelectMode={isSelectMode}
+          onToggleSelectMode={handleToggleSelectMode}
         />
 
+        {isSelectMode && (
+          <div className="selection-action-bar">
+            <div className="selection-count">
+              {selectedNoteIds.length} of {sortedNotes.length} notes selected
+            </div>
+            <div className="selection-actions">
+              <button type="button" className="selection-btn" onClick={handleSelectAll}>
+                Select All
+              </button>
+              <button type="button" className="selection-btn" onClick={handleDeselectAll} disabled={selectedNoteIds.length === 0}>
+                Deselect All
+              </button>
+              <button type="button" className="selection-btn delete-btn" onClick={handleDeleteSelected} disabled={selectedNoteIds.length === 0}>
+                Delete Selected
+              </button>
+              <button type="button" className="selection-btn delete-btn" onClick={handleDeleteAll} disabled={sortedNotes.length === 0}>
+                Delete All
+              </button>
+              <button type="button" className="selection-btn cancel-btn" onClick={handleToggleSelectMode}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <div className="app-content-area">
-          {layoutMode === 'grid' ? (
+          {isViewLocked ? (
+            <UnlockOverlay
+              categoryName={activeTag || "Secure Vault"}
+              isOnline={isOnline}
+              onUnlockPin={handlePinUnlock}
+              onSimulateGoogleLogin={handleSimulateGoogleLogin}
+              hasPinVault={hasPinVault}
+              onCancel={handleCancelUnlock}
+            />
+          ) : layoutMode === 'grid' ? (
             <GridView
               notes={sortedNotes}
               onUpdateNote={handleUpdateNote}
@@ -313,6 +697,9 @@ function App() {
               allTags={tags}
               theme={theme}
               onReorderNotes={handleReorderNotes}
+              isSelectMode={isSelectMode}
+              selectedNoteIds={selectedNoteIds}
+              onToggleSelect={handleToggleSelectNote}
             />
           ) : (
             <CanvasBoard
@@ -323,10 +710,19 @@ function App() {
               allTags={tags}
               theme={theme}
               onAddNoteAtPosition={handleAddNote}
+              isSelectMode={isSelectMode}
+              selectedNoteIds={selectedNoteIds}
+              onToggleSelect={handleToggleSelectNote}
             />
           )}
         </div>
       </main>
+
+      {/* Modals & Dialogs */}
+      <PinSetupModal
+        isOpen={isPinSetupOpen}
+        onSubmit={handlePinSetupSubmit}
+      />
     </div>
   );
 }

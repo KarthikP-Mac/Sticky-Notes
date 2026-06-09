@@ -1,19 +1,23 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { 
-  Search, 
-  Plus, 
-  LayoutGrid, 
-  Maximize2, 
-  Sun, 
-  Moon, 
-  Download, 
+import {
+  Search,
+  Plus,
+  LayoutGrid,
+  Maximize2,
+  Sun,
+  Moon,
+  Download,
   ChevronDown,
   FileText,
   Code,
   Printer,
   X,
   ArrowUpDown,
-  Menu
+  Menu,
+  Lock,
+  Unlock,
+  CloudOff,
+  CheckSquare
 } from 'lucide-react';
 import { exportAllToTxt, exportToJson, exportToCsv, printNotes } from '../utils/exportHelpers';
 
@@ -28,7 +32,14 @@ export default function Toolbar({
   onThemeToggle,
   onAddNote,
   filteredNotes,
-  onToggleSidebar
+  onToggleSidebar,
+  isUnlocked,
+  onLock,
+  onUnlock,
+  isOnline,
+  currentUser,
+  isSelectMode,
+  onToggleSelectMode
 }) {
   const [isExportOpen, setIsExportOpen] = useState(false);
   const exportMenuRef = useRef(null);
@@ -51,9 +62,9 @@ export default function Toolbar({
   return (
     <header className="app-toolbar">
       {/* Mobile Menu Toggle Button */}
-      <button 
-        type="button" 
-        className="mobile-menu-btn" 
+      <button
+        type="button"
+        className="mobile-menu-btn"
         onClick={onToggleSidebar}
         title="Toggle Sidebar"
       >
@@ -71,9 +82,9 @@ export default function Toolbar({
           onChange={(e) => onSearchChange(e.target.value)}
         />
         {searchQuery && (
-          <button 
-            type="button" 
-            className="clear-search-btn" 
+          <button
+            type="button"
+            className="clear-search-btn"
             onClick={() => onSearchChange('')}
             title="Clear search"
           >
@@ -87,9 +98,9 @@ export default function Toolbar({
         {/* Sort Actions */}
         <div className="sort-selector-wrapper">
           <ArrowUpDown size={14} className="sort-icon" />
-          <select 
-            className="sort-select" 
-            value={sortBy} 
+          <select
+            className="sort-select"
+            value={sortBy}
             onChange={(e) => onSortChange(e.target.value)}
             title="Sort Notes"
           >
@@ -138,29 +149,29 @@ export default function Toolbar({
 
           {isExportOpen && (
             <div className="export-dropdown-menu">
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="export-menu-item"
                 onClick={() => { exportAllToTxt(filteredNotes); setIsExportOpen(false); }}
               >
                 <FileText size={14} /> Export TXT
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="export-menu-item"
                 onClick={() => { exportToJson(filteredNotes); setIsExportOpen(false); }}
               >
                 <Code size={14} /> Export JSON
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="export-menu-item"
                 onClick={() => { exportToCsv(filteredNotes); setIsExportOpen(false); }}
               >
                 <Download size={14} /> Export CSV
               </button>
-              <button 
-                type="button" 
+              <button
+                type="button"
                 className="export-menu-item"
                 onClick={() => { printNotes(filteredNotes); setIsExportOpen(false); }}
               >
@@ -169,6 +180,59 @@ export default function Toolbar({
             </div>
           )}
         </div>
+
+        {/* Offline Badge */}
+        {!isOnline && (
+          <div className="offline-status-indicator" title="Application is currently offline. Some features may be restricted.">
+            <CloudOff size={14} />
+            <span className="offline-text">Offline</span>
+          </div>
+        )}
+
+        {/* Vault Status Indicator */}
+        <div className="vault-status-container">
+          {isUnlocked ? (
+            <div className="vault-status-unlocked" title="Secure Vault Unlocked">
+              {currentUser?.picture ? (
+                <img src={currentUser.picture} alt={currentUser.name} className="user-profile-avatar" />
+              ) : (
+                <span className="user-avatar-placeholder">
+                  {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
+                </span>
+              )}
+              <span className="user-name-label">{currentUser?.name || "Unlocked"}</span>
+              <button
+                type="button"
+                className="vault-lock-btn"
+                onClick={onLock}
+                title="Lock secure notes & sign out"
+              >
+                <Lock size={12} />
+                <span>Lock</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="vault-unlock-btn"
+              onClick={onUnlock}
+              title="Unlock secure notes vault"
+            >
+              <Unlock size={14} />
+              <span>Unlock Vault</span>
+            </button>
+          )}
+        </div>
+
+        {/* Select Mode Toggle */}
+        <button
+          type="button"
+          className={`select-mode-toggle-btn ${isSelectMode ? 'active' : ''}`}
+          onClick={onToggleSelectMode}
+          title={isSelectMode ? "Exit Select Mode" : "Select Multiple Notes"}
+        >
+          <CheckSquare size={18} />
+        </button>
 
         {/* Theme Toggle */}
         <button
