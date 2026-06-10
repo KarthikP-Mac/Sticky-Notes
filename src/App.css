@@ -750,3 +750,60 @@ a.stat-card.active {
   0%, 100% { transform: scale(1); box-shadow: 0 0 16px rgba(234, 179, 8, 0.1); }
   50% { transform: scale(1.04); box-shadow: 0 0 24px rgba(234, 179, 8, 0.35); }
 }
+
+/* Responsive Vault Status and Lock/Unlock styles */
+@media (max-width: 900px) {
+  .user-name-label {
+    display: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .vault-unlock-btn {
+    padding: 0 10px !important;
+    height: 36px !important;
+    font-size: 0.75rem !important;
+  }
+  .vault-unlock-btn span {
+    display: none !important;
+  }
+  
+  .vault-status-unlocked {
+    padding: 2px !important;
+    gap: 4px !important;
+    height: 36px !important;
+  }
+  
+  .vault-lock-btn {
+    padding: 0 8px !important;
+    height: 30px !important;
+  }
+  .vault-lock-btn span {
+    display: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .unlock-card {
+    padding: 24px 16px !important;
+    border-radius: 16px !important;
+    gap: 16px !important;
+  }
+  .unlock-card h2 {
+    font-size: 1.25rem !important;
+  }
+  .overlay-pin-form {
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 240px !important;
+  }
+  .overlay-pin-form input {
+    width: 100% !important;
+  }
+  .pin-unlock-submit-btn {
+    width: 100% !important;
+    height: 40px !important;
+    padding: 0 12px !important;
+  }
+}
+

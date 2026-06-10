@@ -247,6 +247,12 @@ export default function NoteCard({
           />
         </div>
 
+        <EmojiDropdown 
+          onSelect={handleEmojiSelect}
+          triggerClassName="add-note-emoji-btn"
+          placement="bottom-start"
+        />
+
         {!isSelectMode && (
           <div className="note-header-actions">
             {/* Pin Button */}
@@ -316,6 +322,7 @@ export default function NoteCard({
           </div>
         )}
       </div>
+      
 
       {/* Note Body */}
       <div className="note-card-body">

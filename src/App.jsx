@@ -16,6 +16,8 @@ import {
 import PinSetupModal from './components/PinSetupModal';
 import UnlockOverlay from './components/UnlockOverlay';
 
+
+
 const getInitialNotes = () => {
   const savedPublic = localStorage.getItem('public_notes');
   if (savedPublic) {
@@ -231,13 +233,17 @@ function App() {
 
     const initGoogleGSI = () => {
       if (window.google?.accounts?.id) {
-        window.google.accounts.id.initialize({
-          client_id: "102874135541-1skmrtic028v5r5v8o0cpe300ld7gqdf.apps.googleusercontent.com", // client id snippet
-          callback: window.handleCredentialResponse,
-          auto_select: false
-        });
+        if (!window.gsiInitialized) {
+          window.google.accounts.id.initialize({
+            client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+            callback: window.handleCredentialResponse,
+            auto_select: false
+          });
+          window.gsiInitialized = true;
+        }
       }
     };
+
 
     if (window.google) {
       initGoogleGSI();
